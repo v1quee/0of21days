@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>0 День - 21 RESET</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -12,18 +12,15 @@
             box-sizing: border-box;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-
         body {
             background: #fff;
             color: #000;
             min-height: 100vh;
         }
-
         .container {
             max-width: 100%;
             padding: 20px;
         }
-
         .screen {
             min-height: 100vh;
             display: flex;
@@ -31,19 +28,24 @@
             justify-content: center;
             align-items: center;
             text-align: center;
-            display: none;
-        }
 
+            /* Для плавного появления/исчезновения */
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+        }
         .screen.active {
-            display: flex;
+            opacity: 1;
+            pointer-events: auto;
+            position: relative;
         }
-
         h1 {
             font-size: 32px;
             margin-bottom: 30px;
             font-weight: 700;
         }
-
         .choice-btn {
             width: 100%;
             padding: 20px;
@@ -55,18 +57,20 @@
             font-size: 16px;
             cursor: pointer;
             transition: opacity 0.3s;
+            user-select: none;
         }
-
         .choice-btn:active {
             opacity: 0.8;
         }
-
+        .choice-btn:hover {
+            opacity: 0.9;
+        }
         .task {
             font-size: 18px;
             margin: 20px 0;
             line-height: 1.5;
+            max-width: 400px;
         }
-
         .final-btn {
             background: #0088cc;
             color: white;
@@ -74,6 +78,25 @@
             border-radius: 20px;
             text-decoration: none;
             margin-top: 20px;
+            display: inline-block;
+            user-select: none;
+        }
+        .back-btn {
+            margin-top: 10px;
+            background: #ddd;
+            color: #333;
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            user-select: none;
+            width: 100%;
+            max-width: 400px;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        .back-btn:hover {
+            background-color: #bbb;
         }
     </style>
 </head>
@@ -89,42 +112,46 @@
         <div class="screen" id="soft1">
             <h1>Начните с тишины</h1>
             <div class="task">
-                Найдите тихое место. Сядьте удобно.<br>
-                Закройте глаза на 5 минут.<br>
+                Найдите тихое место. Сядьте удобно.<br />
+                Закройте глаза на 5 минут.<br />
                 Просто дышите и наблюдайте за своими мыслями.
             </div>
             <button class="choice-btn" onclick="nextScreen('soft1', 'soft2')">Далее</button>
+            <button class="back-btn" onclick="goBack('soft1')">Назад</button>
         </div>
 
         <div class="screen" id="soft2">
             <h1>Запишите свои мысли</h1>
             <div class="task">
-                Возьмите лист бумаги.<br>
-                Запишите 3 вещи, которые вы хотите изменить в своей жизни.<br>
+                Возьмите лист бумаги.<br />
+                Запишите 3 вещи, которые вы хотите изменить в своей жизни.<br />
                 Не спешите, подумайте.
             </div>
             <button class="choice-btn" onclick="nextScreen('soft2', 'final')">Далее</button>
+            <button class="back-btn" onclick="goBack('soft2')">Назад</button>
         </div>
 
         <!-- Активный путь -->
         <div class="screen" id="active1">
             <h1>Время действовать!</h1>
             <div class="task">
-                Встаньте прямо сейчас.<br>
-                Сделайте 10 прыжков на месте.<br>
+                Встаньте прямо сейчас.<br />
+                Сделайте 10 прыжков на месте.<br />
                 Глубоко вдохните и выдохните 3 раза.
             </div>
             <button class="choice-btn" onclick="nextScreen('active1', 'active2')">Далее</button>
+            <button class="back-btn" onclick="goBack('active1')">Назад</button>
         </div>
 
         <div class="screen" id="active2">
             <h1>Ваша цель</h1>
             <div class="task">
-                Громко произнесите вслух:<br>
-                "Я готов к изменениям!<br>
+                Громко произнесите вслух:<br />
+                "Я готов к изменениям!<br />
                 Я начинаю прямо сейчас!"
             </div>
             <button class="choice-btn" onclick="nextScreen('active2', 'final')">Далее</button>
+            <button class="back-btn" onclick="goBack('active2')">Назад</button>
         </div>
 
         <!-- Финальный экран -->
@@ -133,23 +160,54 @@
             <div class="task">
                 Теперь время для настоящих изменений
             </div>
-            <a href="https://21reset.shop" class="final-btn">Выберите свою программу</a>
+            <a href="https://21reset.shop" class="final-btn" id="finalLink">Выберите свою программу</a>
+            <button class="back-btn" onclick="goBack('final')">Назад</button>
         </div>
     </div>
 
     <script>
-        let tg = window.Telegram.WebApp;
+        const tg = window.Telegram.WebApp;
         tg.expand();
 
+        // Чтобы запомнить откуда пришли назад
+        const historyStack = [];
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(id).classList.add('active');
+        }
+
         function showPath(path) {
-            document.getElementById('start').classList.remove('active');
-            document.getElementById(path + '1').classList.add('active');
+            historyStack.push('start');
+            showScreen(path + '1');
         }
 
         function nextScreen(current, next) {
-            document.getElementById(current).classList.remove('active');
-            document.getElementById(next).classList.add('active');
+            historyStack.push(current);
+            showScreen(next);
         }
+
+        function goBack(current) {
+            if (historyStack.length === 0) {
+                // Если нет истории, вернуться к старту
+                showScreen('start');
+                return;
+            }
+            const prev = historyStack.pop();
+            showScreen(prev);
+        }
+
+        // Закрываем WebApp при клике на финальную ссылку
+        document.getElementById('finalLink').addEventListener('click', () => {
+            tg.close();
+        });
+
+        // Обработчик изменения темы (опционально)
+        tg.onEvent('themeChanged', () => {
+            // Можно добавить логику смены стиля
+        });
     </script>
 </body>
 </html>
